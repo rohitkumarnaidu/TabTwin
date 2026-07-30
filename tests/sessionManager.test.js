@@ -100,6 +100,14 @@ test('addGuest and removeSocket manage participant lifecycle correctly', async (
   });
 
   const created = await manager.createSession({ hostName: 'Diana' });
+  const hostMessages = [];
+  const hostSocket = {
+    id: 'host-sock-1',
+    readyState: 1,
+    send: (data) => hostMessages.push(JSON.parse(data))
+  };
+  await manager.attachHost(created.id, hostSocket);
+
   const guestSocket = { id: 'guest-sock-1', readyState: 1, send: () => {} };
   const joined = await manager.addGuest(created.id, guestSocket, { name: 'Eve' });
 
@@ -113,9 +121,12 @@ test('addGuest and removeSocket manage participant lifecycle correctly', async (
   const fetched = await manager.getSession(created.id);
   assert.ok(fetched);
   assert.equal(fetched.guests.length, 0);
+  assert.equal(hostMessages.length, 1);
+  assert.equal(hostMessages[0].event, 'session:guest-left');
+  assert.equal(hostMessages[0].payload.guests.length, 0);
 });
 
-test('endSession removes session from storage and closes sockets', async () => {
+test('endSession removes session from storage', async () => {
   const redisClient = new MockRedis();
   const manager = createSessionManager({
     clientUrl: 'http://localhost:5173',
